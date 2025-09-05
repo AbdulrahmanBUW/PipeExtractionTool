@@ -35,17 +35,8 @@ namespace PipeExtractionTool
                     return Result.Succeeded;
                 }
 
-                // Filter sheets that belong to DEAXO_My (assuming this is in the sheet name or parameter)
-                List<DrawingSheetInfo> deaxoSheets = FilterDeaxoSheets(drawingSheets);
-
-                if (!deaxoSheets.Any())
-                {
-                    TaskDialog.Show("Information", "No DEAXO_My drawing sheets found in the current document.");
-                    return Result.Succeeded;
-                }
-
                 // Show UI for sheet selection
-                PipeExtractionWindow window = new PipeExtractionWindow(deaxoSheets, doc);
+                PipeExtractionWindow window = new PipeExtractionWindow(drawingSheets, doc);
                 window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
                 bool? result = window.ShowDialog();
@@ -75,16 +66,20 @@ namespace PipeExtractionTool
 
             foreach (ViewSheet sheet in collector.Cast<ViewSheet>())
             {
-                // Skip placeholder sheets if possible (some versions don't have this property)
+                // Skip placeholder sheets if possible using reflection
                 try
                 {
-                    if (sheet.IsPlaceholderSheet)
+                    var isPlaceholderProp = sheet.GetType().GetProperty("IsPlaceholderSheet");
+                    if (isPlaceholderProp != null && (bool)isPlaceholderProp.GetValue(sheet))
                         continue;
                 }
                 catch
                 {
-                    // Property not available in this version, continue anyway
+                    // Property not available or accessible, continue anyway
                 }
+
+                // Get discipline parameter
+                string discipline = GetSheetDiscipline(sheet);
 
                 DrawingSheetInfo sheetInfo = new DrawingSheetInfo
                 {
@@ -92,6 +87,7 @@ namespace PipeExtractionTool
                     Name = sheet.Name,
                     Number = sheet.SheetNumber,
                     Title = sheet.Title,
+                    Discipline = discipline,
                     ViewSheet = sheet
                 };
 
@@ -101,32 +97,149 @@ namespace PipeExtractionTool
             return sheets;
         }
 
-        private List<DrawingSheetInfo> FilterDeaxoSheets(List<DrawingSheetInfo> allSheets)
+        private void DebugSheetParameters(ViewSheet sheet)
         {
-            // Filter sheets that contain "DEAXO_My" in their name, number, or title
-            return allSheets.Where(sheet =>
-                (sheet.Name?.Contains("DEAXO_My") == true) ||
-                (sheet.Number?.Contains("DEAXO_My") == true) ||
-                (sheet.Title?.Contains("DEAXO_My") == true) ||
-                (sheet.Number?.Contains("DEAXO") == true) // More flexible matching
-            ).ToList();
+            try
+            {
+                TaskDialog.Show("Debug", $"Listing parameters for sheet: {sheet.SheetNumber}");
+
+                string parameterInfo = "Parameters:\n";
+                foreach (Parameter param in sheet.Parameters)
+                {
+                    string value = "No value";
+                    if (param.HasValue)
+                    {
+                        try
+                        {
+                            switch (param.StorageType)
+                            {
+                                case StorageType.String:
+                                    value = param.AsString();
+                                    break;
+                                case StorageType.Integer:
+                                    value = param.AsInteger().ToString();
+                                    break;
+                                case StorageType.Double:
+                                    value = param.AsDouble().ToString();
+                                    break;
+                                case StorageType.ElementId:
+                                    ElementId id = param.AsElementId();
+                                    if (id != ElementId.InvalidElementId)
+                                    {
+                                        Element elem = sheet.Document.GetElement(id);
+                                        value = elem?.Name ?? "Unknown Element";
+                                    }
+                                    else
+                                    {
+                                        value = "Invalid ElementId";
+                                    }
+                                    break;
+                                default:
+                                    value = "Unknown type";
+                                    break;
+                            }
+                        }
+                        catch
+                        {
+                            value = "Error reading value";
+                        }
+                    }
+
+                    parameterInfo += $"{param.Definition.Name}: {value}\n";
+                }
+
+                TaskDialog.Show("Sheet Parameters", parameterInfo);
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Error", $"Failed to get parameters: {ex.Message}");
+            }
         }
-    }
 
-    public class DrawingSheetInfo
-    {
-        public ElementId Id { get; set; }
-        public string Name { get; set; }
-        public string Number { get; set; }
-        public string Title { get; set; }
-        public ViewSheet ViewSheet { get; set; }
-        public bool IsSelected { get; set; } = false;
-
-        public string DisplayName => $"{Number} - {Name}";
-
-        public override string ToString()
+        private string GetSheetDiscipline(ViewSheet sheet)
         {
-            return DisplayName;
+            try
+            {
+                // Try to get the discipline parameter by name (shared parameter)
+                string disciplineParameterName = "000_000_150_Discipline";
+                Parameter disciplineParam = sheet.LookupParameter(disciplineParameterName);
+
+                if (disciplineParam != null && disciplineParam.HasValue)
+                {
+                    if (disciplineParam.StorageType == StorageType.String)
+                    {
+                        return disciplineParam.AsString();
+                    }
+                    else if (disciplineParam.StorageType == StorageType.Integer)
+                    {
+                        return disciplineParam.AsInteger().ToString();
+                    }
+                    else if (disciplineParam.StorageType == StorageType.Double)
+                    {
+                        return disciplineParam.AsDouble().ToString();
+                    }
+                    else if (disciplineParam.StorageType == StorageType.ElementId)
+                    {
+                        ElementId id = disciplineParam.AsElementId();
+                        if (id != ElementId.InvalidElementId)
+                        {
+                            Element elem = sheet.Document.GetElement(id);
+                            return elem?.Name ?? "Unknown";
+                        }
+                    }
+                }
+
+                // Try alternative parameter names if the specific one doesn't work
+                string[] alternativeParams = {
+                    "000_000_152_Discipline", // Try the previous name too
+                    "Discipline",
+                    "DISCIPLINE",
+                    "Sheet Discipline",
+                    "Sheet_Discipline"
+                };
+
+                foreach (string paramName in alternativeParams)
+                {
+                    Parameter altParam = sheet.LookupParameter(paramName);
+                    if (altParam != null && altParam.HasValue)
+                    {
+                        if (altParam.StorageType == StorageType.String)
+                        {
+                            return altParam.AsString();
+                        }
+                        else if (altParam.StorageType == StorageType.Integer)
+                        {
+                            return altParam.AsInteger().ToString();
+                        }
+                        else if (altParam.StorageType == StorageType.Double)
+                        {
+                            return altParam.AsDouble().ToString();
+                        }
+                        else if (altParam.StorageType == StorageType.ElementId)
+                        {
+                            ElementId id = altParam.AsElementId();
+                            if (id != ElementId.InvalidElementId)
+                            {
+                                Element elem = sheet.Document.GetElement(id);
+                                return elem?.Name ?? "Unknown";
+                            }
+                        }
+                    }
+                }
+
+                // Debug: List all parameters to help identify the correct one
+                System.Diagnostics.Debug.WriteLine($"Parameters for sheet {sheet.SheetNumber}:");
+                foreach (Parameter param in sheet.Parameters)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  {param.Definition.Name}: {param.AsValueString()}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting discipline parameter: {ex.Message}");
+            }
+
+            return "Unknown";
         }
     }
 }

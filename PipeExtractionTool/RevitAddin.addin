@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Pipe Extraction Tool</Name>
+    <Assembly>PipeExtractionTool.dll</Assembly>
+    <AddInId>8C7A5F2D-3B6E-4A9C-8D5E-1F2A3B4C5D6E</AddInId>
+    <FullClassName>PipeExtractionTool.Application</FullClassName>
+    <VendorId>DEAXO</VendorId>
+    <VendorDescription>DEAXO Engineering</VendorDescription>
+  </AddIn>
+</RevitAddIns>

@@ -19,7 +19,7 @@ namespace PipeExtractionTool
                 using (var package = new ExcelPackage())
                 {
                     // Create worksheet
-                    var worksheet = package.Workbook.Worksheets.Add("DEAXO Pipe Report");
+                    var worksheet = package.Workbook.Worksheets.Add("Pipe Report");
 
                     // Set up headers
                     worksheet.Cells[1, 1].Value = "Drawing Name";

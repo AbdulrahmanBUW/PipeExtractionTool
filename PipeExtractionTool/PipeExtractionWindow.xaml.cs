@@ -16,23 +16,27 @@ namespace PipeExtractionTool
         private List<DrawingSheetInfo> _drawingSheets;
         private Document _document;
         private BackgroundWorker _backgroundWorker;
+        private List<string> _disciplines;
+        private List<DrawingSheetInfo> _currentDisplayedSheets;
 
         public PipeExtractionWindow(List<DrawingSheetInfo> drawingSheets, Document document)
         {
             InitializeComponent();
             _drawingSheets = drawingSheets;
             _document = document;
+            _currentDisplayedSheets = drawingSheets; // Initially show all sheets
 
             InitializeUI();
             SetupBackgroundWorker();
+            LoadDisciplines();
         }
 
         private void InitializeUI()
         {
-            SheetsListView.ItemsSource = _drawingSheets;
+            SheetsListView.ItemsSource = _currentDisplayedSheets;
 
             // Pre-select all sheets
-            foreach (var sheet in _drawingSheets)
+            foreach (var sheet in _currentDisplayedSheets)
             {
                 sheet.IsSelected = true;
             }
@@ -53,9 +57,83 @@ namespace PipeExtractionTool
             _backgroundWorker.RunWorkerCompleted += BackgroundWorker_RunWorkerCompleted;
         }
 
+        private void LoadDisciplines()
+        {
+            _disciplines = new List<string>();
+
+            try
+            {
+                // Get all unique disciplines
+                _disciplines = _drawingSheets
+                    .Select(s => s.Discipline)
+                    .Distinct()
+                    .OrderBy(d => d)
+                    .ToList();
+
+                // Add "All Disciplines" option
+                _disciplines.Insert(0, "All Disciplines");
+
+                // Populate the combo box
+                DisciplinesComboBox.ItemsSource = _disciplines;
+                DisciplinesComboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading disciplines: {ex.Message}");
+            }
+        }
+
+        private void DisciplinesComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Optional: Auto-filter when a discipline is selected
+        }
+
+        private void SelectDisciplineButton_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedDiscipline = DisciplinesComboBox.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedDiscipline))
+            {
+                MessageBox.Show("Please select a discipline first.", "No Selection",
+                               MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                if (selectedDiscipline == "All Disciplines")
+                {
+                    // Show all sheets
+                    _currentDisplayedSheets = _drawingSheets;
+                }
+                else
+                {
+                    // Filter sheets by discipline
+                    _currentDisplayedSheets = _drawingSheets.Where(s => s.Discipline == selectedDiscipline).ToList();
+                }
+
+                SheetsListView.ItemsSource = _currentDisplayedSheets;
+                SheetsListView.Items.Refresh();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error filtering by discipline: {ex.Message}", "Error",
+                              MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ClearFilterButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Show all sheets
+            _currentDisplayedSheets = _drawingSheets;
+            SheetsListView.ItemsSource = _currentDisplayedSheets;
+            SheetsListView.Items.Refresh();
+            DisciplinesComboBox.SelectedIndex = 0;
+        }
+
         private void SelectAllButton_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var sheet in _drawingSheets)
+            // Select only the sheets currently displayed in the list view
+            foreach (var sheet in _currentDisplayedSheets)
             {
                 sheet.IsSelected = true;
             }
@@ -64,7 +142,8 @@ namespace PipeExtractionTool
 
         private void DeselectAllButton_Click(object sender, RoutedEventArgs e)
         {
-            foreach (var sheet in _drawingSheets)
+            // Deselect only the sheets currently displayed in the list view
+            foreach (var sheet in _currentDisplayedSheets)
             {
                 sheet.IsSelected = false;
             }
@@ -73,6 +152,7 @@ namespace PipeExtractionTool
 
         private void ExtractButton_Click(object sender, RoutedEventArgs e)
         {
+            // Get selected sheets from the original list, not just the displayed ones
             var selectedSheets = _drawingSheets.Where(s => s.IsSelected).ToList();
 
             if (!selectedSheets.Any())
@@ -87,7 +167,7 @@ namespace PipeExtractionTool
             {
                 Filter = "Excel files (*.xlsx)|*.xlsx",
                 Title = "Save Pipe Extraction Report",
-                FileName = $"DEAXO_Pipe_Report_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
+                FileName = $"Pipe_Report_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx"
             };
 
             if (saveFileDialog.ShowDialog() == true)
@@ -103,8 +183,11 @@ namespace PipeExtractionTool
             SelectAllButton.IsEnabled = false;
             DeselectAllButton.IsEnabled = false;
             SheetsListView.IsEnabled = false;
+            DisciplinesComboBox.IsEnabled = false;
+            SelectDisciplineButton.IsEnabled = false;
+            ClearFilterButton.IsEnabled = false;
 
-            ProgressBar.Visibility = Visibility.Visible;
+            ProgressBar.Visibility = System.Windows.Visibility.Visible;
             ProgressText.Text = "Starting extraction...";
 
             // Start background work
@@ -169,8 +252,11 @@ namespace PipeExtractionTool
             SelectAllButton.IsEnabled = true;
             DeselectAllButton.IsEnabled = true;
             SheetsListView.IsEnabled = true;
+            DisciplinesComboBox.IsEnabled = true;
+            SelectDisciplineButton.IsEnabled = true;
+            ClearFilterButton.IsEnabled = true;
 
-            ProgressBar.Visibility = Visibility.Collapsed;
+            ProgressBar.Visibility = System.Windows.Visibility.Collapsed;
             ProgressText.Text = "";
 
             if (e.Result is ExtractionResult result)

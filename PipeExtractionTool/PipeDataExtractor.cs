@@ -23,7 +23,7 @@ namespace PipeExtractionTool
                     break;
 
                 // Report progress
-                int progressPercentage = (int)((double)processedSheets / totalSheets * 80); // Reserve 20% for Excel generation
+                int progressPercentage = (int)((double)processedSheets / totalSheets * 80);
                 worker?.ReportProgress(progressPercentage, $"Processing sheet: {sheetInfo.DisplayName}");
 
                 try
@@ -50,7 +50,7 @@ namespace PipeExtractionTool
         {
             var sheetPipeData = new SheetPipeData
             {
-                SheetName = $"{sheet.SheetNumber}",
+                SheetName = $"{sheet.SheetNumber} - {sheet.Name}",
                 PipeSpecPositions = new List<string>()
             };
 
@@ -77,17 +77,6 @@ namespace PipeExtractionTool
                         {
                             sheetPipeData.PipeSpecPositions.Add(specPosition);
                         }
-                    }
-                }
-
-                // Also check if there are any pipes directly visible on the sheet (drafting views, etc.)
-                var directPipes = GetPipesDirectlyOnSheet(doc, sheet);
-                foreach (var pipe in directPipes)
-                {
-                    string specPosition = GetSpecPositionParameter(pipe);
-                    if (!string.IsNullOrEmpty(specPosition) && !sheetPipeData.PipeSpecPositions.Contains(specPosition))
-                    {
-                        sheetPipeData.PipeSpecPositions.Add(specPosition);
                     }
                 }
 
@@ -120,37 +109,6 @@ namespace PipeExtractionTool
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting pipes from view {view.Name}: {ex.Message}");
-            }
-
-            return pipes;
-        }
-
-        private List<Element> GetPipesDirectlyOnSheet(Document doc, ViewSheet sheet)
-        {
-            var pipes = new List<Element>();
-
-            try
-            {
-                // This method would handle any pipes that might be directly placed on sheets
-                // In most cases, pipes are shown through viewports, so this might return empty
-                // But we include it for completeness
-
-                var pipeFilter = new ElementClassFilter(typeof(Pipe));
-                var collector = new FilteredElementCollector(doc)
-                    .WherePasses(pipeFilter)
-                    .WhereElementIsNotElementType();
-
-                // Check if pipes are somehow associated with the sheet directly
-                // This is uncommon in typical Revit workflows
-                foreach (Element pipe in collector)
-                {
-                    // Additional logic could be added here if needed
-                    // For now, we'll rely on the viewport-based extraction
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error getting pipes directly from sheet {sheet.SheetNumber}: {ex.Message}");
             }
 
             return pipes;

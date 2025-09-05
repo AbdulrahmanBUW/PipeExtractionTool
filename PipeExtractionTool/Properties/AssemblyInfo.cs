@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("DEAXO Pipe Extraction Tool")]
+[assembly: AssemblyTitle("Pipe Extraction Tool")]
 [assembly: AssemblyDescription("Revit add-in for extracting pipe data to Excel")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("DEAXO Engineering")]
+[assembly: AssemblyCompany("Engineering")]
 [assembly: AssemblyProduct("PipeExtractionTool")]
-[assembly: AssemblyCopyright("Copyright © DEAXO 2024")]
+[assembly: AssemblyCopyright("Copyright © 2024")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

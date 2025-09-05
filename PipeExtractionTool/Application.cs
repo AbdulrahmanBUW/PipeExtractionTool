@@ -34,7 +34,7 @@ namespace PipeExtractionTool
 
         private void CreateRibbonTab(UIControlledApplication application)
         {
-            string tabName = "DEAXO Tools";
+            string tabName = "Pipe Extraction";
 
             // Create ribbon tab
             try
@@ -47,7 +47,7 @@ namespace PipeExtractionTool
             }
 
             // Create ribbon panel
-            RibbonPanel panel = application.CreateRibbonPanel(tabName, "Pipe Extraction");
+            RibbonPanel panel = application.CreateRibbonPanel(tabName, "Pipe Tools");
 
             // Get assembly path for button image
             string assemblyPath = Assembly.GetExecutingAssembly().Location;
