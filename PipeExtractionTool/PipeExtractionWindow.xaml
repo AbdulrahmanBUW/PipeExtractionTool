@@ -1,20 +1,34 @@
 <Window x:Class="PipeExtractionTool.PipeExtractionWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Pipe Extraction Tool" 
+        Title="DEAXO Pipe Extraction Tool" 
         Height="700" 
-        Width="900"
-        MinHeight="500"
-        MinWidth="700"
+        Width="1000"
+        MinHeight="550"
+        MinWidth="800"
         WindowStartupLocation="CenterScreen"
-        Background="#F5F5F5">
+        Background="#F8F9FA">
 
     <Window.Resources>
-        <Style TargetType="Button" x:Key="ModernButton">
-            <Setter Property="Background" Value="#007ACC"/>
+        <!-- DEAXO Color Scheme -->
+        <Color x:Key="DeaxoPrimary">#0053A0</Color>
+        <Color x:Key="DeaxoSecondary">#FFC107</Color>
+        <Color x:Key="DeaxoAccent">#28A745</Color>
+        <Color x:Key="DeaxoDark">#343A40</Color>
+        <Color x:Key="DeaxoLight">#E9ECEF</Color>
+
+        <SolidColorBrush x:Key="DeaxoPrimaryBrush" Color="{StaticResource DeaxoPrimary}"/>
+        <SolidColorBrush x:Key="DeaxoSecondaryBrush" Color="{StaticResource DeaxoSecondary}"/>
+        <SolidColorBrush x:Key="DeaxoAccentBrush" Color="{StaticResource DeaxoAccent}"/>
+        <SolidColorBrush x:Key="DeaxoDarkBrush" Color="{StaticResource DeaxoDark}"/>
+        <SolidColorBrush x:Key="DeaxoLightBrush" Color="{StaticResource DeaxoLight}"/>
+
+        <!-- Modern Button Style -->
+        <Style TargetType="Button" x:Key="DeaxoPrimaryButton">
+            <Setter Property="Background" Value="{StaticResource DeaxoPrimaryBrush}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Padding" Value="15,10"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -30,10 +44,14 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#005A9E"/>
+                                <Setter Property="Background" Value="#003D75"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#004578"/>
+                                <Setter Property="Background" Value="#00294D"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#B3D7F2"/>
+                                <Setter Property="Foreground" Value="#7F7F7F"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -41,26 +59,81 @@
             </Setter>
         </Style>
 
-        <Style TargetType="Button" x:Key="SecondaryButton" BasedOn="{StaticResource ModernButton}">
-            <Setter Property="Background" Value="#6C757D"/>
+        <Style TargetType="Button" x:Key="DeaxoSecondaryButton" BasedOn="{StaticResource DeaxoPrimaryButton}">
+            <Setter Property="Background" Value="{StaticResource DeaxoLightBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource DeaxoDarkBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CED4DA"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#5A6268"/>
+                    <Setter Property="Background" Value="#DEE2E6"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <Style TargetType="Button" x:Key="TertiaryButton" BasedOn="{StaticResource ModernButton}">
-            <Setter Property="Background" Value="#28A745"/>
+        <Style TargetType="Button" x:Key="DeaxoAccentButton" BasedOn="{StaticResource DeaxoPrimaryButton}">
+            <Setter Property="Background" Value="{StaticResource DeaxoAccentBrush}"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#218838"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- ListView Item Style -->
+        <Style TargetType="ListViewItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListViewItem">
+                        <Border Name="Border" Background="{TemplateBinding Background}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="2"
+                                Padding="2">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#F0F5FF"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{StaticResource DeaxoPrimaryBrush}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- CheckBox Style -->
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource DeaxoDarkBrush}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- TextBlock Styles -->
+        <Style TargetType="TextBlock" x:Key="HeaderText">
+            <Setter Property="Foreground" Value="{StaticResource DeaxoPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+
+        <Style TargetType="TextBlock" x:Key="SubHeaderText">
+            <Setter Property="Foreground" Value="{StaticResource DeaxoDarkBrush}"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+
+        <Style TargetType="TextBlock" x:Key="LabelText">
+            <Setter Property="Foreground" Value="{StaticResource DeaxoDarkBrush}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
     </Window.Resources>
 
-    <Grid Margin="20">
+    <Grid Margin="15">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -71,28 +144,26 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <TextBlock Grid.Row="0" 
-                   Text="Pipe Extraction Tool" 
-                   FontSize="24" 
-                   FontWeight="Bold" 
-                   Foreground="#2C3E50"
-                   Margin="0,0,0,10"/>
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,15">
+            <TextBlock Text="DEAXO Pipe Extraction Tool" 
+                       Style="{StaticResource HeaderText}"
+                       VerticalAlignment="Center"/>
+        </StackPanel>
 
         <!-- Instructions -->
         <TextBlock Grid.Row="1" 
                    Text="Select the drawing sheets from which you want to extract pipe data:" 
-                   FontSize="14" 
-                   Foreground="#34495E"
-                   Margin="0,0,0,15"
-                   TextWrapping="Wrap"/>
+                   Style="{StaticResource SubHeaderText}"
+                   Margin="0,0,0,15"/>
 
         <!-- Discipline Selection -->
         <Border Grid.Row="2" 
-                BorderBrush="#BDC3C7" 
+                BorderBrush="#DEE2E6" 
                 BorderThickness="1" 
-                CornerRadius="4"
+                CornerRadius="6"
                 Background="White"
-                Margin="0,0,0,15">
+                Margin="0,0,0,15"
+                Padding="0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -101,11 +172,11 @@
 
                 <!-- Discipline Selection Header -->
                 <Border Grid.Row="0" 
-                        Background="#ECF0F1" 
-                        Padding="10"
-                        BorderBrush="#BDC3C7"
-                        BorderThickness="0,0,0,1">
+                        Background="{StaticResource DeaxoPrimaryBrush}" 
+                        Padding="12"
+                        CornerRadius="5,5,0,0">
                     <TextBlock Text="Filter by Discipline" 
+                               Foreground="White"
                                FontWeight="Bold"
                                FontSize="14"/>
                 </Border>
@@ -114,33 +185,37 @@
                 <StackPanel Grid.Row="1" 
                             Orientation="Horizontal" 
                             HorizontalAlignment="Left"
-                            Margin="10">
+                            Margin="12"
+                            VerticalAlignment="Center">
                     <ComboBox Name="DisciplinesComboBox" 
-                              Width="200"
+                              Width="220"
+                              Height="32"
                               Margin="0,0,10,0"
                               SelectionChanged="DisciplinesComboBox_SelectionChanged"/>
                     <Button Name="SelectDisciplineButton" 
-                            Content="Select Discipline" 
-                            Style="{StaticResource TertiaryButton}"
-                            Padding="10,5"
+                            Content="Apply Filter" 
+                            Style="{StaticResource DeaxoAccentButton}"
+                            Padding="12,6"
                             FontSize="12"
-                            Click="SelectDisciplineButton_Click" Width="110"/>
+                            Click="SelectDisciplineButton_Click" 
+                            MinWidth="100"/>
                     <Button Name="ClearFilterButton" 
                             Content="Clear Filter" 
-                            Style="{StaticResource SecondaryButton}"
-                            Padding="10,5"
+                            Style="{StaticResource DeaxoSecondaryButton}"
+                            Padding="12,6"
                             FontSize="12"
                             Margin="10,0,0,0"
-                            Click="ClearFilterButton_Click" Width="79"/>
+                            Click="ClearFilterButton_Click" 
+                            MinWidth="80"/>
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- Sheet Selection -->
         <Border Grid.Row="3" 
-                BorderBrush="#BDC3C7" 
+                BorderBrush="#DEE2E6" 
                 BorderThickness="1" 
-                CornerRadius="4"
+                CornerRadius="6"
                 Background="White">
             <Grid>
                 <Grid.RowDefinitions>
@@ -150,24 +225,31 @@
 
                 <!-- Selection Controls -->
                 <Border Grid.Row="0" 
-                        Background="#ECF0F1" 
-                        Padding="10"
-                        BorderBrush="#BDC3C7"
+                        Background="{StaticResource DeaxoLightBrush}" 
+                        Padding="12"
+                        CornerRadius="5,5,0,0"
+                        BorderBrush="#DEE2E6"
                         BorderThickness="0,0,0,1">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="Sheets: " 
+                                   Style="{StaticResource LabelText}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0"/>
                         <Button Name="SelectAllButton" 
                                 Content="Select All" 
-                                Style="{StaticResource SecondaryButton}"
+                                Style="{StaticResource DeaxoSecondaryButton}"
                                 Margin="0,0,10,0"
                                 Padding="10,5"
                                 FontSize="12"
-                                Click="SelectAllButton_Click" Width="57"/>
+                                Click="SelectAllButton_Click"
+                                MinWidth="80"/>
                         <Button Name="DeselectAllButton" 
                                 Content="Deselect All" 
-                                Style="{StaticResource SecondaryButton}"
+                                Style="{StaticResource DeaxoSecondaryButton}"
                                 Padding="10,5"
                                 FontSize="12"
-                                Click="DeselectAllButton_Click" Width="69"/>
+                                Click="DeselectAllButton_Click"
+                                MinWidth="80"/>
                     </StackPanel>
                 </Border>
 
@@ -177,23 +259,40 @@
                           SelectionMode="Multiple"
                           Background="Transparent"
                           BorderThickness="0"
-                          Margin="5">
+                          Margin="5"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListView.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <CheckBox IsChecked="{Binding IsSelected}"
+                            <Grid Margin="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <CheckBox Grid.Column="0" 
+                                          IsChecked="{Binding IsSelected}"
                                           VerticalAlignment="Center"
-                                          Margin="0,0,10,0"/>
-                                <TextBlock Text="{Binding DisplayName}" 
+                                          Margin="5,0,10,0"/>
+
+                                <TextBlock Grid.Column="1" 
+                                           Text="{Binding DisplayName}" 
                                            FontSize="13"
-                                           VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding Discipline}" 
-                                           FontSize="11"
-                                           Foreground="Gray"
-                                           Margin="10,0,0,0"
                                            VerticalAlignment="Center"
-                                           FontStyle="Italic"/>
-                            </StackPanel>
+                                           TextWrapping="Wrap"/>
+
+                                <Border Grid.Column="2" 
+                                        Background="{StaticResource DeaxoLightBrush}" 
+                                        CornerRadius="10"
+                                        Padding="5,2"
+                                        Margin="5,0">
+                                    <TextBlock Text="{Binding Discipline}" 
+                                               FontSize="11"
+                                               Foreground="{StaticResource DeaxoPrimaryBrush}"
+                                               VerticalAlignment="Center"
+                                               FontWeight="SemiBold"/>
+                                </Border>
+                            </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
@@ -201,20 +300,18 @@
         </Border>
 
         <!-- Progress Bar -->
-        <ProgressBar Grid.Row="4" 
-                     Name="ProgressBar"
-                     Height="20" 
-                     Margin="0,15,0,0"
-                     Visibility="Collapsed"/>
-
-        <TextBlock Grid.Row="4" 
-                   Name="ProgressText"
-                   Text=""
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center"
-                   FontSize="12"
-                   Foreground="#7F8C8D"
-                   Margin="0,15,0,0"/>
+        <Grid Grid.Row="4" Margin="0,15,0,0">
+            <ProgressBar Name="ProgressBar"
+                         Height="20" 
+                         Visibility="Collapsed"
+                         Foreground="{StaticResource DeaxoPrimaryBrush}"/>
+            <TextBlock Name="ProgressText"
+                       Text=""
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       FontSize="12"
+                       Foreground="{StaticResource DeaxoDarkBrush}"/>
+        </Grid>
 
         <!-- Buttons -->
         <StackPanel Grid.Row="5" 
@@ -223,13 +320,15 @@
                     Margin="0,20,0,0">
             <Button Name="ExtractButton" 
                     Content="Extract to Excel" 
-                    Style="{StaticResource ModernButton}"
+                    Style="{StaticResource DeaxoPrimaryButton}"
                     Margin="0,0,15,0"
-                    Click="ExtractButton_Click" Width="119" Height="23"/>
+                    Click="ExtractButton_Click" 
+                    MinWidth="120"/>
             <Button Name="CancelButton" 
                     Content="Cancel" 
-                    Style="{StaticResource SecondaryButton}"
-                    Click="CancelButton_Click" Width="53"/>
+                    Style="{StaticResource DeaxoSecondaryButton}"
+                    Click="CancelButton_Click" 
+                    MinWidth="80"/>
         </StackPanel>
     </Grid>
 </Window>

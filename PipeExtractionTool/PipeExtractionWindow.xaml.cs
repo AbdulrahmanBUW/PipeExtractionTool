@@ -312,6 +312,11 @@ namespace PipeExtractionTool
 
             base.OnClosing(e);
         }
+
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
     }
 
     public class ExtractionArgs
