@@ -13,16 +13,14 @@ namespace PipeExtractionTool
     {
         public void ExportToExcel(List<SheetPipeData> data, string filePath)
         {
-
             try
             {
                 using (var package = new ExcelPackage())
                 {
                     // Create worksheet
                     var worksheet = package.Workbook.Worksheets.Add("Pipe Report");
-
-                    // Set up headers
-                    worksheet.Cells[1, 1].Value = "Drawing Name";
+                                // Set up headers
+                worksheet.Cells[1, 1].Value = "Drawing Name";
                     worksheet.Cells[1, 2].Value = "Pipes";
 
                     // Style headers

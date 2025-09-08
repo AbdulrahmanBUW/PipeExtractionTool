@@ -71,6 +71,7 @@
     <Compile Include="PipeDataExtractor.cs" />
     <Compile Include="ExcelExporter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SheetPipeData.cs" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="PipeExtractionWindow.xaml">

@@ -10,7 +10,6 @@ namespace PipeExtractionTool
     public class PipeDataExtractor
     {
         private const string SPEC_POSITION_PARAMETER = "SPEC_POSITION";
-
         public List<SheetPipeData> ExtractPipeData(Document doc, List<DrawingSheetInfo> selectedSheets, BackgroundWorker worker = null)
         {
             var result = new List<SheetPipeData>();
@@ -61,21 +60,22 @@ namespace PipeExtractionTool
 
                 foreach (ElementId viewportId in viewportIds)
                 {
-                    var viewport = doc.GetElement(viewportId) as Viewport;
-                    if (viewport == null) continue;
+                    if (!(doc.GetElement(viewportId) is Viewport viewport)) continue;
 
-                    var view = doc.GetElement(viewport.ViewId) as View;
-                    if (view == null) continue;
+                    if (!(doc.GetElement(viewport.ViewId) is View view)) continue;
 
-                    // Extract pipes from this view
-                    var pipesInView = GetPipesFromView(doc, view);
-
-                    foreach (var pipe in pipesInView)
+                    // Extract pipes from all view types that might contain pipes
+                    if (view is ViewPlan || view is ViewSection || view is View3D)
                     {
-                        string specPosition = GetSpecPositionParameter(pipe);
-                        if (!string.IsNullOrEmpty(specPosition) && !sheetPipeData.PipeSpecPositions.Contains(specPosition))
+                        var pipesInView = GetPipesFromView(doc, view);
+                        foreach (var pipe in pipesInView)
                         {
-                            sheetPipeData.PipeSpecPositions.Add(specPosition);
+                            string specPosition = GetSpecPositionParameter(pipe);
+                            if (!string.IsNullOrEmpty(specPosition) &&
+                                !sheetPipeData.PipeSpecPositions.Contains(specPosition))
+                            {
+                                sheetPipeData.PipeSpecPositions.Add(specPosition);
+                            }
                         }
                     }
                 }
@@ -97,88 +97,100 @@ namespace PipeExtractionTool
 
             try
             {
-                // Create filter for pipe elements
-                var pipeFilter = new ElementClassFilter(typeof(Pipe));
-
-                // Get all pipes visible in this view
+                // Use a more comprehensive approach to collect pipe elements
                 var collector = new FilteredElementCollector(doc, view.Id)
-                    .WherePasses(pipeFilter);
+                    .OfClass(typeof(Pipe))
+                    .WhereElementIsNotElementType();
 
                 pipes.AddRange(collector.ToElements());
+
+                // Also try to get pipes from model groups in the view
+                var groupCollector = new FilteredElementCollector(doc, view.Id)
+                    .OfClass(typeof(Group));
+
+                foreach (Element element in groupCollector)
+                {
+                    if (element is Group group)
+                    {
+                        foreach (ElementId memberId in group.GetMemberIds())
+                        {
+                            Element member = doc.GetElement(memberId);
+                            if (member is Pipe)
+                            {
+                                pipes.Add(member);
+                            }
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting pipes from view {view.Name}: {ex.Message}");
             }
 
-            return pipes;
+            return pipes.Distinct().ToList(); // Remove duplicates
         }
 
         private string GetSpecPositionParameter(Element pipe)
         {
             try
             {
-                // Try to get the SPEC_POSITION parameter
+                // Try to get the SPEC_POSITION parameter using different methods
                 Parameter specParam = pipe.LookupParameter(SPEC_POSITION_PARAMETER);
+
+                // If not found, try alternative parameter names
+                if (specParam == null || !specParam.HasValue)
+                {
+                    string[] alternativeParams = { "Spec Position", "SpecPosition", "SPEC_POS", "Specification Position" };
+                    foreach (string paramName in alternativeParams)
+                    {
+                        specParam = pipe.LookupParameter(paramName);
+                        if (specParam != null && specParam.HasValue) break;
+                    }
+                }
+
+                // If still not found, try to get parameter by built-in parameter if available
+                if ((specParam == null || !specParam.HasValue) && pipe is Pipe)
+                {
+                    specParam = pipe.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+                }
 
                 if (specParam != null && specParam.HasValue)
                 {
-                    if (specParam.StorageType == StorageType.String)
+                    switch (specParam.StorageType)
                     {
-                        return specParam.AsString();
-                    }
-                    else if (specParam.StorageType == StorageType.Integer)
-                    {
-                        return specParam.AsInteger().ToString();
-                    }
-                    else if (specParam.StorageType == StorageType.Double)
-                    {
-                        return specParam.AsDouble().ToString();
-                    }
-                }
-
-                // If SPEC_POSITION is not found, try alternative parameter names
-                string[] alternativeParams = { "Spec Position", "SpecPosition", "SPEC_POS", "Specification Position" };
-
-                foreach (string paramName in alternativeParams)
-                {
-                    Parameter altParam = pipe.LookupParameter(paramName);
-                    if (altParam != null && altParam.HasValue)
-                    {
-                        if (altParam.StorageType == StorageType.String)
-                        {
-                            return altParam.AsString();
-                        }
-                        else if (altParam.StorageType == StorageType.Integer)
-                        {
-                            return altParam.AsInteger().ToString();
-                        }
-                        else if (altParam.StorageType == StorageType.Double)
-                        {
-                            return altParam.AsDouble().ToString();
-                        }
-                    }
-                }
-
-                // As a fallback, try to get pipe system information
-                if (pipe is Pipe pipeElement)
-                {
-                    try
-                    {
-                        var systemParam = pipeElement.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
-                        if (systemParam != null && systemParam.HasValue)
-                        {
-                            ElementId systemTypeId = systemParam.AsElementId();
-                            if (systemTypeId != ElementId.InvalidElementId)
+                        case StorageType.String:
+                            return specParam.AsString();
+                        case StorageType.Integer:
+                            return specParam.AsInteger().ToString();
+                        case StorageType.Double:
+                            return specParam.AsDouble().ToString();
+                        case StorageType.ElementId:
+                            ElementId id = specParam.AsElementId();
+                            if (id != ElementId.InvalidElementId)
                             {
-                                Element systemType = pipe.Document.GetElement(systemTypeId);
-                                return systemType?.Name ?? "";
+                                Element elem = pipe.Document.GetElement(id);
+                                return elem?.Name ?? "";
                             }
-                        }
+                            break;
                     }
-                    catch
+                }
+
+                // Additional fallback: try to get parameter using GetParameters method
+                var parameters = pipe.GetParameters(SPEC_POSITION_PARAMETER);
+                if (parameters.Any())
+                {
+                    foreach (Parameter param in parameters)
                     {
-                        // Ignore errors in fallback logic
+                        if (param.HasValue)
+                        {
+                            if (param.StorageType == StorageType.String)
+                                return param.AsString();
+                            else if (param.StorageType == StorageType.Integer)
+                                return param.AsInteger().ToString();
+                            else if (param.StorageType == StorageType.Double)
+                                return param.AsDouble().ToString();
+                        }
                     }
                 }
             }
@@ -188,19 +200,6 @@ namespace PipeExtractionTool
             }
 
             return string.Empty;
-        }
-    }
-
-    public class SheetPipeData
-    {
-        public string SheetName { get; set; }
-        public List<string> PipeSpecPositions { get; set; }
-
-        public string PipeSpecPositionsString => string.Join(", ", PipeSpecPositions ?? new List<string>());
-
-        public SheetPipeData()
-        {
-            PipeSpecPositions = new List<string>();
         }
     }
 }
