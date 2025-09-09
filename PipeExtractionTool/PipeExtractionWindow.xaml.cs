@@ -15,7 +15,6 @@ namespace PipeExtractionTool
     {
         private List<DrawingSheetInfo> _drawingSheets;
         private Document _document;
-        private BackgroundWorker _backgroundWorker;
         private List<string> _disciplines;
         private List<DrawingSheetInfo> _currentDisplayedSheets;
 
@@ -27,7 +26,6 @@ namespace PipeExtractionTool
             _currentDisplayedSheets = drawingSheets; // Initially show all sheets
 
             InitializeUI();
-            SetupBackgroundWorker();
             LoadDisciplines();
         }
 
@@ -42,19 +40,6 @@ namespace PipeExtractionTool
             }
 
             SheetsListView.Items.Refresh();
-        }
-
-        private void SetupBackgroundWorker()
-        {
-            _backgroundWorker = new BackgroundWorker
-            {
-                WorkerReportsProgress = true,
-                WorkerSupportsCancellation = true
-            };
-
-            _backgroundWorker.DoWork += BackgroundWorker_DoWork;
-            _backgroundWorker.ProgressChanged += BackgroundWorker_ProgressChanged;
-            _backgroundWorker.RunWorkerCompleted += BackgroundWorker_RunWorkerCompleted;
         }
 
         private void LoadDisciplines()
@@ -150,7 +135,7 @@ namespace PipeExtractionTool
             SheetsListView.Items.Refresh();
         }
 
-        private void ExtractButton_Click(object sender, RoutedEventArgs e)
+        private async void ExtractButton_Click(object sender, RoutedEventArgs e)
         {
             // Get selected sheets from the original list, not just the displayed ones
             var selectedSheets = _drawingSheets.Where(s => s.IsSelected).ToList();
@@ -172,95 +157,29 @@ namespace PipeExtractionTool
 
             if (saveFileDialog.ShowDialog() == true)
             {
-                StartExtraction(selectedSheets, saveFileDialog.FileName);
+                await StartExtractionAsync(selectedSheets, saveFileDialog.FileName);
             }
         }
 
-        private void StartExtraction(List<DrawingSheetInfo> selectedSheets, string filePath)
+        private async Task StartExtractionAsync(List<DrawingSheetInfo> selectedSheets, string filePath)
         {
             // Disable UI
-            ExtractButton.IsEnabled = false;
-            SelectAllButton.IsEnabled = false;
-            DeselectAllButton.IsEnabled = false;
-            SheetsListView.IsEnabled = false;
-            DisciplinesComboBox.IsEnabled = false;
-            SelectDisciplineButton.IsEnabled = false;
-            ClearFilterButton.IsEnabled = false;
-
+            SetUIEnabled(false);
             ProgressBar.Visibility = System.Windows.Visibility.Visible;
             ProgressText.Text = "Starting extraction...";
 
-            // Start background work
-            var args = new ExtractionArgs
-            {
-                SelectedSheets = selectedSheets,
-                FilePath = filePath,
-                Document = _document
-            };
-
-            _backgroundWorker.RunWorkerAsync(args);
-        }
-
-        private void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
-        {
-            var args = (ExtractionArgs)e.Argument;
-            var worker = (BackgroundWorker)sender;
-
             try
             {
-                var extractor = new PipeDataExtractor();
-                var result = extractor.ExtractPipeData(args.Document, args.SelectedSheets, worker);
-
-                worker.ReportProgress(90, "Generating Excel file...");
-
-                var excelExporter = new ExcelExporter();
-                excelExporter.ExportToExcel(result, args.FilePath);
-
-                worker.ReportProgress(100, "Extraction completed successfully!");
-
-                e.Result = new ExtractionResult
+                // Create a simple progress reporter that updates the UI
+                var progressReporter = new Progress<(int percentage, string message)>(report =>
                 {
-                    Success = true,
-                    FilePath = args.FilePath,
-                    ExtractedData = result
-                };
-            }
-            catch (Exception ex)
-            {
-                e.Result = new ExtractionResult
-                {
-                    Success = false,
-                    ErrorMessage = ex.Message
-                };
-            }
-        }
+                    ProgressBar.Value = report.percentage;
+                    ProgressText.Text = report.message;
+                });
 
-        private void BackgroundWorker_ProgressChanged(object sender, ProgressChangedEventArgs e)
-        {
-            ProgressBar.Value = e.ProgressPercentage;
+                // Run extraction on UI thread with progress updates
+                var result = await Task.Run(() => ExtractDataWithProgress(selectedSheets, filePath, progressReporter));
 
-            if (e.UserState != null)
-            {
-                ProgressText.Text = e.UserState.ToString();
-            }
-        }
-
-        private void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
-        {
-            // Re-enable UI
-            ExtractButton.IsEnabled = true;
-            SelectAllButton.IsEnabled = true;
-            DeselectAllButton.IsEnabled = true;
-            SheetsListView.IsEnabled = true;
-            DisciplinesComboBox.IsEnabled = true;
-            SelectDisciplineButton.IsEnabled = true;
-            ClearFilterButton.IsEnabled = true;
-
-            ProgressBar.Visibility = System.Windows.Visibility.Collapsed;
-            ProgressText.Text = "";
-
-            if (e.Result is ExtractionResult result)
-            {
                 if (result.Success)
                 {
                     string message = $"Extraction completed successfully!\n\nFile saved to:\n{result.FilePath}\n\nTotal sheets processed: {result.ExtractedData?.Count ?? 0}";
@@ -291,31 +210,121 @@ namespace PipeExtractionTool
                                   MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Extraction failed: {ex.Message}", "Error",
+                              MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                // Re-enable UI
+                SetUIEnabled(true);
+                ProgressBar.Visibility = System.Windows.Visibility.Collapsed;
+                ProgressText.Text = "";
+            }
+        }
+
+        private ExtractionResult ExtractDataWithProgress(List<DrawingSheetInfo> selectedSheets, string filePath, IProgress<(int, string)> progress)
+        {
+            try
+            {
+                // IMPORTANT: Use Dispatcher.Invoke to run extraction on UI thread
+                return Dispatcher.Invoke(() =>
+                {
+                    progress?.Report((10, "Initializing extraction..."));
+
+                    var extractor = new PipeDataExtractor();
+
+                    // Create a simple progress wrapper for the extractor
+                    var extractorProgress = new SimpleProgressReporter(progress);
+
+                    var extractedData = extractor.ExtractPipeData(_document, selectedSheets, extractorProgress);
+
+                    progress?.Report((90, "Generating Excel file..."));
+
+                    var excelExporter = new ExcelExporter();
+                    excelExporter.ExportToExcel(extractedData, filePath);
+
+                    progress?.Report((100, "Extraction completed successfully!"));
+
+                    return new ExtractionResult
+                    {
+                        Success = true,
+                        FilePath = filePath,
+                        ExtractedData = extractedData
+                    };
+                });
+            }
+            catch (Exception ex)
+            {
+                return new ExtractionResult
+                {
+                    Success = false,
+                    ErrorMessage = ex.Message
+                };
+            }
+        }
+
+        private void SetUIEnabled(bool enabled)
+        {
+            ExtractButton.IsEnabled = enabled;
+            SelectAllButton.IsEnabled = enabled;
+            DeselectAllButton.IsEnabled = enabled;
+            SheetsListView.IsEnabled = enabled;
+            DisciplinesComboBox.IsEnabled = enabled;
+            SelectDisciplineButton.IsEnabled = enabled;
+            ClearFilterButton.IsEnabled = enabled;
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_backgroundWorker?.IsBusy == true)
-            {
-                _backgroundWorker.CancelAsync();
-            }
-
             DialogResult = false;
         }
 
         protected override void OnClosing(CancelEventArgs e)
         {
-            if (_backgroundWorker?.IsBusy == true)
-            {
-                _backgroundWorker.CancelAsync();
-            }
-
             base.OnClosing(e);
         }
 
         private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
 
+        }
+    }
+
+    // Simple progress reporter that bridges between IProgress<T> and BackgroundWorker style reporting
+    public class SimpleProgressReporter
+    {
+        private readonly IProgress<(int, string)> _progress;
+        private int _totalSheets;
+        private int _processedSheets;
+
+        public SimpleProgressReporter(IProgress<(int, string)> progress)
+        {
+            _progress = progress;
+        }
+
+        public bool CancellationPending => false; // No cancellation support for now
+
+        public void SetTotalSheets(int total)
+        {
+            _totalSheets = total;
+            _processedSheets = 0;
+        }
+
+        public void ReportProgress(int percentage, string message)
+        {
+            _progress?.Report((percentage, message));
+        }
+
+        public void IncrementSheet()
+        {
+            _processedSheets++;
+            if (_totalSheets > 0)
+            {
+                int percentage = (int)((double)_processedSheets / _totalSheets * 80); // Leave 20% for Excel export
+                _progress?.Report((percentage, $"Processed {_processedSheets}/{_totalSheets} sheets"));
+            }
         }
     }
 
